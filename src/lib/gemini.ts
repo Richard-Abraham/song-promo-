@@ -4,12 +4,13 @@ let geminiAI: GoogleGenerativeAI | null = null;
 
 export const initializeGemini = (apiKey: string): boolean => {
   try {
-    // Basic API key format validation
-    if (!apiKey || apiKey.length < 20) {
+    const key = apiKey || import.meta.env.VITE_GEMINI_API_KEY;
+    
+    if (!key || key.length < 20) {
       throw new Error('Invalid API key format');
     }
     
-    geminiAI = new GoogleGenerativeAI(apiKey);
+    geminiAI = new GoogleGenerativeAI(key);
     return true;
   } catch (error) {
     console.error('Failed to initialize Gemini:', error);

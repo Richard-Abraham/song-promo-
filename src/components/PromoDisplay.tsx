@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Music4, Video, MessageCircle, Hash } from 'lucide-react';
 
 interface PromoContent {
