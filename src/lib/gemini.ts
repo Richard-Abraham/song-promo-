@@ -50,36 +50,58 @@ Return ONLY a JSON object in this exact format (no additional text):
     const response = await result.response;
     const text = response.text();
     
-    // Clean the response text
-    const cleanedText = text
-      .replace(/[\n\r]/g, ' ') // Replace newlines with spaces
-      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-      .trim();
-    
-    // Try to extract JSON from the response
-    const jsonMatch = cleanedText.match(/\{.*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in response');
+    const parsed = cleanAndParseJSON(text);
+
+    // Validate the response structure
+    if (!parsed.hook || !parsed.videoStory || !parsed.caption || !Array.isArray(parsed.hashtags)) {
+      throw new Error('Invalid response structure');
     }
 
-    const jsonStr = jsonMatch[0];
-    
-    try {
-      const parsed = JSON.parse(jsonStr);
-
-      // Validate the response structure
-      if (!parsed.hook || !parsed.videoStory || !parsed.caption || !Array.isArray(parsed.hashtags)) {
-        throw new Error('Invalid response structure');
-      }
-
-      return parsed;
-    } catch (parseError: unknown) {
-      throw new Error(`Failed to parse JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
-    }
+    return parsed;
   } catch (error: unknown) {
     if (error instanceof Error) {
       throw new Error(`Failed to generate content: ${error.message}`);
     }
     throw new Error('Failed to generate content');
+  }
+};
+
+const cleanAndParseJSON = (text: string) => {
+  // First clean the text content
+  const cleanedText = text.replace(/\*\*/g, ''); // Remove double asterisks
+  
+  // Find the JSON object in the cleaned text
+  const jsonRegex = /\{[\s\S]*\}/;
+  const match = cleanedText.match(jsonRegex);
+  
+  if (!match) {
+    throw new Error('No JSON found in response');
+  }
+
+  let jsonStr = match[0];
+  
+  // Clean up JSON formatting issues
+  jsonStr = jsonStr
+    .replace(/[\n\r]/g, ' ') // Remove newlines
+    .replace(/,\s*}/g, '}') // Remove trailing commas
+    .replace(/,\s*,/g, ',') // Remove double commas
+    .replace(/\s+/g, ' ') // Normalize spaces
+    .replace(/([{,])\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":') // Ensure property names are quoted
+    .trim();
+
+  try {
+    const parsed = JSON.parse(jsonStr);
+    
+    // Clean asterisks from all string values in the parsed object
+    Object.keys(parsed).forEach(key => {
+      if (typeof parsed[key] === 'string') {
+        parsed[key] = parsed[key].replace(/\*\*/g, '');
+      }
+    });
+    
+    return parsed;
+  } catch (error) {
+    console.error('JSON parsing error:', jsonStr);
+    throw new Error(`Failed to parse JSON: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
